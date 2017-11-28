@@ -1,6 +1,6 @@
 ---
 title: "STAT/MATH 495: Problem Set 10"
-author: "WRITE YOUR NAME(S) HERE"
+author: "Jeff Lancaster"
 date: "2017-11-28"
 output:
   html_document:
@@ -16,21 +16,20 @@ output:
 knitr::opts_chunk$set(echo = TRUE, fig.width=8, fig.height=4.5, message=FALSE, warning = FALSE)
 ```
 
-
-
 # Collaboration
 
-Please indicate who you collaborated with on this assignment: 
-
-
+Please indicate who you collaborated with on this assignment: rpubs
 
 # Setup
 
 ```{r}
+library(Metrics)
 library(tidyverse)
 library(broom)
 library(glmnet)
-
+library(tidyverse)
+```
+```{r, include=FALSE}
 train <- read_csv("data/train.csv")
 test <- read_csv("data/test.csv")
 sample_submission <- read_csv("data/sample_submission.csv")
@@ -53,16 +52,42 @@ predictor_matrix_train <- model.matrix(model_formula, data = train)[, -1]
 predictor_matrix_test <- model.matrix(model_formula, data = test)[, -1]
 ```
 
+# The plan
+
+1. Fit linear and lasso models
+2. Predict using both models on both train (for calculating score) and test (for submission) and add the resulting 2 columns to both dfs
+3. Output submission files and rmsle stuff
 
 # Do work and create submission files:
 
 ```{r}
+mod_linear<-lm(model_formula,train)
+lambda<-cv.glmnet(x=predictor_matrix_train, y=train$log_price_doc, alpha=1)
+#str(lambda)
+lambda_min<-min(lambda$lambda) 
+mod_lasso<-glmnet(x=predictor_matrix_train, y=train$log_price_doc, alpha=1, lambda=lambda_min) #use lambda_min
 
+train <- train %>% #add lasso and linear predictions to train set
+  mutate(lasso_prediction_train=exp(predict(mod_lasso, predictor_matrix_train)),
+         linear_prediction_train=exp(predict(mod_linear,train)))
+
+test <- test %>% #add lasso and linear predictions to test set
+  mutate(lasso_prediction_test=exp(predict(mod_lasso, predictor_matrix_test)),
+         linear_prediction_test=exp(predict(mod_linear, test)))
+
+test %>% #creating submisssion with linear model used
+  select("id","linear_prediction_test") %>%
+  rename(price_doc=linear_prediction_test) %>% 
+  write.csv("linear_mod.csv",row.names=FALSE)
+
+test %>% #creating submission with lasso model used
+  select("id","lasso_prediction_test") %>% 
+  rename(price_doc=lasso_prediction_test) %>% 
+  write.csv("lasso_mod.csv",row.names=FALSE)
+
+rmsle1<-rmsle(train$price_doc,train$linear_prediction_train) #rmsle with linear model used 
+rmsle2<-rmsle(train$price_doc,train$lasso_prediction_train) #rmsle with lasso model used
 ```
-
-
-
-
 
 # Scoreboard
 
@@ -72,5 +97,5 @@ in these cells:
 
 Method                | Training Score  | Kaggle Score
 --------------------- | -------------   | -------------
-lm                    |                 |  
-LASSO crossvalidated  |                 |  
+lm                    |  `r rmsle1`     | 2.63413 
+LASSO crossvalidated  |  `r rmsle2`     | 0.83142 
