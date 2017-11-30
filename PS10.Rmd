@@ -29,6 +29,7 @@ library(broom)
 library(glmnet)
 library(tidyverse)
 ```
+
 ```{r, include=FALSE}
 train <- read_csv("data/train.csv")
 test <- read_csv("data/test.csv")
@@ -64,7 +65,7 @@ predictor_matrix_test <- model.matrix(model_formula, data = test)[, -1]
 mod_linear<-lm(model_formula,train)
 lambda<-cv.glmnet(x=predictor_matrix_train, y=train$log_price_doc, alpha=1)
 #str(lambda)
-lambda_min<-min(lambda$lambda) 
+lambda_min<-lambda$lambda.min 
 mod_lasso<-glmnet(x=predictor_matrix_train, y=train$log_price_doc, alpha=1, lambda=lambda_min) #use lambda_min
 
 train <- train %>% #add lasso and linear predictions to train set
@@ -98,4 +99,6 @@ in these cells:
 Method                | Training Score  | Kaggle Score
 --------------------- | -------------   | -------------
 lm                    |  `r rmsle1`     | 2.63413 
-LASSO crossvalidated  |  `r rmsle2`     | 0.83142 
+LASSO crossvalidated  |  `r rmsle2`     | 0.41917
+ 
+
